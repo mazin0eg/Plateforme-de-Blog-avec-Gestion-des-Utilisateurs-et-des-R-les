@@ -8,10 +8,15 @@ if (!isset($_SESSION['user_email']) || $_SESSION['user_role'] !== 'admin') {
     exit();
 }
 
-// Fetch admin-related data, e.g., number of users, recent activity, etc.
-$sql = "SELECT COUNT(*) AS total_users FROM users";
-$result = mysqli_query($conn, $sql);
-$total_users = mysqli_fetch_assoc($result)['total_users'];
+// Fetch the total number of users
+$sql_users = "SELECT COUNT(*) AS total_users FROM users";
+$result_users = mysqli_query($conn, $sql_users);
+$total_users = mysqli_fetch_assoc($result_users)['total_users'];
+
+// Fetch the total number of communities (tags table used as communities)
+$sql_communities = "SELECT COUNT(*) AS total_communities FROM tags";
+$result_communities = mysqli_query($conn, $sql_communities);
+$total_communities = mysqli_fetch_assoc($result_communities)['total_communities'];
 ?>
 
 <!DOCTYPE html>
@@ -21,19 +26,32 @@ $total_users = mysqli_fetch_assoc($result)['total_users'];
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="../style/home.css">
   <title>Admin Dashboard</title>
+  <style>
+      .stats-box {
+          background-color: #f9f9f9;
+          border: 1px solid #ddd;
+          padding: 20px;
+          margin: 10px 0;
+          border-radius: 8px;
+          text-align: center;
+      }
+      
+  </style>
 </head>
 <body>
 
     <!-- Sidebar -->
     <div class="sidebar">
-        <a href=""><img src="../image/twitter.png" alt="Logo"></a>
-        <ul>
-            <li><a href="admin_home.php"><img src="../image/home (1).png" alt="">Dashboard</a></li>
-            <li><a href="manage_users.php"><img src="../image/settings.png" alt="">Manage Users</a></li>
-            <li><a href="reports.php"><img src="../image/report.png" alt="">Reports</a></li>
-            <li><a href="logout.php"><img src="../image/logout.png" alt="">Logout</a></li>
-        </ul>
-    </div>
+    <a href="admin_home.php"><img src="../image/twitter.png" alt="Logo"></a>
+    <ul>
+        <li><a href="admin_home.php"><img src="../image/home (1).png" alt="">Home</a></li>
+        <li><a href="manage_users.php"><img src="../image/user-gear.png" alt="">Manage Users</a></li>
+        <li><a href="manage_communities.php"><img src="../image/users-alt.png" alt="">Manage Tags</a></li>
+        <li><a href="manage_posts.php"><img src="../image/blog-text.png" alt="">Manage Posts</a></li>
+        <li><a href="logout.php"><img src="../image/sign-out-alt (1).png" alt="">Logout</a></li>
+    </ul>
+</div>
+
 
     <!-- Main Content -->
     <div class="main">
@@ -45,20 +63,13 @@ $total_users = mysqli_fetch_assoc($result)['total_users'];
                 <h4>Total Users:</h4>
                 <p><?php echo $total_users; ?></p>
             </div>
-            <!-- Add more widgets as necessary -->
             <div class="stats-box">
-                <h4>Recent Activity:</h4>
-                <p>See the latest user actions and system updates.</p>
+                <h4>Total Communities:</h4>
+                <p><?php echo $total_communities; ?></p>
             </div>
         </div>
 
-        <div class="admin-actions">
-            <h3>Quick Actions</h3>
-            <div class="action-links">
-                <a href="manage_users.php" class="button">Manage Users</a>
-                <a href="reports.php" class="button">View Reports</a>
-            </div>
-        </div>
+        
 
     </div>
 
