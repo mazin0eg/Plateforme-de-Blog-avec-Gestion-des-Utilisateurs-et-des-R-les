@@ -50,7 +50,6 @@ if (isset($_POST['tweetButton'])) {
                     mysqli_stmt_execute($stmt);
                 }
             }
-            
         }
     }
 }
@@ -64,9 +63,43 @@ if (isset($_POST['deletePost'])) {
     mysqli_stmt_execute($stmt);
 }
 
-// Fetch all posts from the database
+// Handle liking a post
+if (isset($_POST['likeButton'])) {
+    $post_id = $_POST['post_id'];
+    $user_id = $_SESSION['user_id'];
+
+    // Check if the user has already liked the post
+    $check_like_query = "SELECT id FROM likes WHERE user_id = ? AND post_id = ?";
+    $stmt = mysqli_prepare($conn, $check_like_query);
+    mysqli_stmt_bind_param($stmt, 'ii', $user_id, $post_id);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+
+    // If the user hasn't liked the post yet, add the like
+    if (mysqli_num_rows($result) == 0) {
+        $like_query = "INSERT INTO likes (user_id, post_id) VALUES (?, ?)";
+        $stmt = mysqli_prepare($conn, $like_query);
+        mysqli_stmt_bind_param($stmt, 'ii', $user_id, $post_id);
+        mysqli_stmt_execute($stmt);
+    }
+}
+
+// Handle unliking a post
+if (isset($_POST['unlikeButton'])) {
+    $post_id = $_POST['post_id'];
+    $user_id = $_SESSION['user_id'];
+
+    // Remove the like from the likes table
+    $unlike_query = "DELETE FROM likes WHERE user_id = ? AND post_id = ?";
+    $stmt = mysqli_prepare($conn, $unlike_query);
+    mysqli_stmt_bind_param($stmt, 'ii', $user_id, $post_id);
+    mysqli_stmt_execute($stmt);
+}
+
+// Fetch all posts with the count of likes
 $posts_query = "
-    SELECT posts.*, users.username, GROUP_CONCAT(tags.name SEPARATOR ', ') AS tag_names
+    SELECT posts.*, users.username, GROUP_CONCAT(tags.name SEPARATOR ', ') AS tag_names, 
+           (SELECT COUNT(*) FROM likes WHERE likes.post_id = posts.id) AS like_count
     FROM posts
     JOIN users ON posts.user_id = users.id
     LEFT JOIN post_tags ON posts.id = post_tags.post_id
@@ -86,37 +119,83 @@ $posts_result = mysqli_query($conn, $posts_query);
     <link rel="stylesheet" href="../style/home.css">
     <title>Home</title>
     <style>
-        .menu {
-            position: relative;
-            display: inline-block;
-        }
-        .menu-content {
-            display: none;
-            position: absolute;
-            background-color: white;
-            box-shadow: 0px 8px 16px rgba(0,0,0,0.2);
-            z-index: 1;
-        }
-        .menu-content button {
-            color: black;
-            padding: 8px 12px;
-            text-decoration: none;
-            display: block;
-            border: none;
-            background: none;
-            cursor: pointer;
-            width: 100%;
-        }
-        .menu-content button:hover {
-            background-color: #ddd;
-        }
-        .menu:hover .menu-content {
-            display: block;
-        }
+        /* Modify the tweet container */
+.tweet {
+    padding: 20px;
+    border: 1px solid #ddd;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    position: relative;
+}
+
+/* Modify the menu container to position it at the top right */
+.menu {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
+}
+
+.menu-content {
+    display: none;
+    position: absolute;
+    right: 0;
+    background-color: white;
+    box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.2);
+    z-index: 1;
+    border-radius: 4px;
+}
+
+.menu-content button {
+    color: black;
+    padding: 8px 12px;
+    text-decoration: none;
+    display: block;
+    border: none;
+    background: none;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+}
+
+.menu-content button:hover {
+    background-color: #ddd;
+}
+
+.menu-button {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 5px;
+}
+
+/* Hover effect */
+.menu:hover .menu-content {
+    display: block;
+}
+
+/* Make the menu responsive */
+@media (max-width: 768px) {
+    /* Adjust position for smaller screens */
+    .menu {
+        top: 5px;
+        right: 5px;
+    }
+    
+    .tweet {
+        padding: 15px;
+    }
+
+    /* Reduce font size of the menu button */
+    .menu-button {
+        font-size: 16px;
+    }
+}
+
     </style>
 </head>
 <body>
-    <!-- Sidebar -->
     <div class="sidebar">
         <a href=""><img src="../image/twitter.png" alt=""></a>
         <ul>
@@ -129,17 +208,15 @@ $posts_result = mysqli_query($conn, $posts_query);
         </ul>
     </div>
 
-    <!-- Main Content -->
     <div class="main">
         <h2>Welcome, <?php echo htmlspecialchars($_SESSION['user_email']); ?>!</h2>
 
-        <!-- User-specific content -->
         <div class="tweet-box">
             <form method="POST" action="home.php">
                 <textarea name="tweettitle" rows="3" placeholder="What’s the topic?"></textarea>
                 <textarea name="tweetContent" rows="3" placeholder="What’s happening?"></textarea>
                 <label for="postTags">Select Tags:</label>
-                <select name="postTags[]" id="postTags" multiple required>
+                <select name="postTags[]" id="postTags" required >
                     <?php while ($tag = mysqli_fetch_assoc($tags_result)) : ?>
                         <option value="<?php echo htmlspecialchars($tag['id']); ?>">
                             <?php echo htmlspecialchars($tag['name']); ?>
@@ -150,22 +227,48 @@ $posts_result = mysqli_query($conn, $posts_query);
             </form>
         </div>
 
-        <!-- Display Tweets -->
         <div class="tweets">
             <?php if (mysqli_num_rows($posts_result) > 0) : ?>
                 <?php while ($post = mysqli_fetch_assoc($posts_result)) : ?>
                     <div class='tweet'>
                         <h3><?php echo htmlspecialchars($post['username']); ?> - <?php echo htmlspecialchars($post['title']); ?></h3>
                         <p><?php echo htmlspecialchars($post['content']); ?></p>
-                        <p><strong>Tags:</strong> <?php echo htmlspecialchars($post['tag_names'] ?? 'No tags'); ?></p>
+                        <p><strong>#</strong><?php echo htmlspecialchars($post['tag_names'] ?? 'No tags'); ?></p>
                         <small>Posted on: <?php echo htmlspecialchars($post['created_at']); ?></small>
-                        <?php if ($_SESSION['user_email'] === $post['username']) : ?>
-                            <div class='menu'>
-                                <img src='../image/dots.png' alt='menu' style='cursor:pointer;'>
-                                <div class='menu-content'>
-                                    <form method='POST' action='home.php'>
-                                        <input type='hidden' name='post_id' value='<?php echo htmlspecialchars($post['id']); ?>'>
-                                        <button type='submit' name='deletePost'>Delete Post</button>
+                        
+                        <!-- Likes -->
+                        <p><strong>Likes:</strong> <?php echo htmlspecialchars($post['like_count']); ?></p>
+
+                        <!-- Like/Unlike button -->
+                        <?php 
+                            // Check if the current user has already liked this post
+                            $liked_query = "SELECT id FROM likes WHERE user_id = ? AND post_id = ?";
+                            $stmt = mysqli_prepare($conn, $liked_query);
+                            mysqli_stmt_bind_param($stmt, 'ii', $_SESSION['user_id'], $post['id']);
+                            mysqli_stmt_execute($stmt);
+                            $liked_result = mysqli_stmt_get_result($stmt);
+                            $liked = mysqli_num_rows($liked_result) > 0;
+                        ?>
+
+                        <form method="POST" action="home.php">
+                            <input type="hidden" name="post_id" value="<?php echo htmlspecialchars($post['id']); ?>">
+                            <?php if ($liked) : ?>
+                                <button type="submit" name="unlikeButton" style="color: red;">Unlike</button>
+                            <?php else : ?>
+                                <button type="submit" name="likeButton" style="color: blue;">Like</button>
+                            <?php endif; ?>
+                        </form>
+
+                        <!-- Delete post menu -->
+                        <?php if ($post['user_id'] == $_SESSION['user_id']) : ?>
+                            <div class="menu">
+                                <button class="menu-button">⋮</button>
+                                <div class="menu-content">
+                                    <form method="POST" action="home.php">
+                                        <input type="hidden" name="post_id" value="<?php echo htmlspecialchars($post['id']); ?>">
+                                        <button type="submit" name="deletePost" style="background-color: #f44336; color: white; border: none; padding: 8px 12px; cursor: pointer; border-radius: 4px; width: 100px;">
+                                            Delete Post
+                                        </button>
                                     </form>
                                 </div>
                             </div>
@@ -178,7 +281,6 @@ $posts_result = mysqli_query($conn, $posts_query);
         </div>
     </div>
 
-    <!-- Right Bar -->
     <div class="right-bar">
         <h3>Trends for you</h3>
         <div class="trends">
@@ -192,5 +294,24 @@ $posts_result = mysqli_query($conn, $posts_query);
             </div>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const menuButtons = document.querySelectorAll('.menu-button');
+            
+            menuButtons.forEach(button => {
+                button.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    const menuContent = this.nextElementSibling;
+                    menuContent.style.display = menuContent.style.display === 'block' ? 'none' : 'block';
+                });
+            });
+
+            document.addEventListener('click', function () {
+                const menus = document.querySelectorAll('.menu-content');
+                menus.forEach(menu => menu.style.display = 'none');
+            });
+        });
+    </script>
 </body>
 </html>

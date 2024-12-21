@@ -17,18 +17,20 @@ if (isset($_POST['user-login'])) {
 
         // Verify the password
         if (password_verify($user_password, $user['password'])) {
-            // Password is correct, login successful
-            $_SESSION['user_email'] = $user['email'];
-            $_SESSION['user_role'] = ($user['role_id'] == 1) ? 'admin' : 'user'; // Map role_id to 'admin' or 'user'
-
-            // Redirect based on the user role
-            if ($_SESSION['user_role'] === 'admin') {
-                header("Location: admin_home.php"); // Redirect admin to the dashboard
-            } else {
-                header("Location: home.php"); // Redirect regular users to the home page
-            }
-            exit();
-        } else {
+          // Password is correct, login successful
+          $_SESSION['user_id'] = $user['id']; // Add this line
+          $_SESSION['user_email'] = $user['email'];
+          $_SESSION['user_role'] = ($user['role_id'] == 1) ? 'admin' : 'user'; // Map role_id to 'admin' or 'user'
+      
+          // Redirect based on the user role
+          if ($_SESSION['user_role'] === 'admin') {
+              header("Location: admin_home.php"); // Redirect admin to the dashboard
+          } else {
+              header("Location: home.php"); // Redirect regular users to the home page
+          }
+          exit();
+      }
+       else {
             // Invalid password
             $_SESSION['error'] = "Incorrect password. Please try again.";
         }
